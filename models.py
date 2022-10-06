@@ -19,7 +19,11 @@ def TM(filename, k):
     tm.setdefault(tuple(f.split()), []).append(phrase(e, float(logprob))) ## setdefault: insert key with a default value
   for f in tm: # prune all but top k translations
     tm[f].sort(key=lambda x: -x.logprob)
-    del tm[f][k:] 
+    if(isinstance(k,int)):
+      del tm[f][k:] 
+    else:
+      ##print(tm[f][0])
+      tm[f] = [i for i in tm[f] if i.logprob > k]
   return tm
 
 # # A language model scores sequences of English words, and must account

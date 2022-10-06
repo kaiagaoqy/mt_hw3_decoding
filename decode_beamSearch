@@ -14,63 +14,43 @@ optparser.add_option("-k", "--translations-per-phrase", dest="k", default=100, t
 optparser.add_option("-s", "--stack-size", dest="s", default=1000, type="int", help="Maximum stack size (default=1)")
 optparser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False,  help="Verbose mode (default=off)")
 optparser.add_option("-d", "--reordering_distance", dest="rl", default=5, type="int", help="Maximum reordering distance (default=5)")
-optparser.add_option("-a", "--alpha-for-distance", dest="alpha", default=0.7, type="float", help="constant for computing distance log(alpha^d(start-end-1)) (default=0.7)")
 
 opts = optparser.parse_args()[0]
 
-############# Prepare Sentences ###############
-## prune for A*
-sys.stderr.write("Pruning and Generating Graph for A* ")
-best_tp = max([float(line.strip().split(' ||| ')[2])for line in open(opts.tm).readlines()]) 
-prune_limit = math.log(0.01 * math.exp(best_tp))
-ALPHA_DIST = opts.alpha
-
-sys.stderr.write("Importing sentences ")
-tm = models.TM(opts.tm, prune_limit) #{{('honorables',): [phrase(english='hono...gprob=0.0)], ...}}
+tm = models.TM(opts.tm, opts.k) #{{('honorables',): [phrase(english='hono...gprob=0.0)], ...}}
 lm = models.LM(opts.lm) # table[ngram] = ngram_stats(logprob, backoff)
 french = [tuple(line.strip().split()) for line in open(opts.input).readlines()[:opts.num_sents]]
 
 
-# tm should translate unknown words as-is with 0.01 * best inverse translation probability
+# tm should translate unknown words as-is with probability 1
 for word in set(sum(french,())):
   if (word,) not in tm:
-    tm[(word,)] = [models.phrase(word, prune_limit)] ## phrase = namedtuple("phrase", "english, logprob")
+    tm[(word,)] = [models.phrase(word, 0.0)] ## phrase = namedtuple("phrase", "english, logprob")
 
 sys.stderr.write("Decoding %s...\n" % (opts.input,))
-for ind, f in enumerate(french): ## loop each sentences
+for f in french: ## loop each sentences
   # The following code implements a monotone decoding
   # algorithm (one that doesn't permute the target phrases).
   # Hence all hypotheses in stacks[i] represent translations of 
   # the first i words of the input sentence. You should generalize
   # this so that they can represent translations of *any* i words.
-  if ((ind+5)*100/len(french))%10 == 0:
-        print("Progress: %.1f" % (ind+5)*100/len(french)) 
-  hypothesis = namedtuple("hypothesis", "logprob, lm_state, predecessor, phrase, end_pos, reached")
-  initial_hypothesis = hypothesis(0.0, lm.begin(), None, None, 0, tuple())
+  hypothesis = namedtuple("hypothesis", "logprob, lm_state, predecessor, phrase")
+  initial_hypothesis = hypothesis(0.0, lm.begin(), None, None)
   stacks = [{} for _ in f] + [{}] ## add a null list for initial_hypothesis
   stacks[0][lm.begin()] = initial_hypothesis
   for i, stack in enumerate(stacks[:-1]):
     for h in sorted(stack.values(),key=lambda h: -h.logprob)[:opts.s]: # prune: keep size of each stack less than maximum, only keep the top S hypothesis
-      for j in range(i+1,len(f)+1): ## at least move forward 1 step
+      for j in range(i+1,min(i+opts.rl,len(f))+1): ## at least move forward 1 step
         if f[i:j] in tm: ## ('honorables',) if phrase occurred in translation model, add conditional probablity, else compute backoff weight+prob
           for phrase in tm[f[i:j]]:
-            distance = i - h.end_pos
-            if(distance > opts.rl): ## using reordering limits 
-                  break
-            log_dis = math.log(ALPHA_DIST**distance)
-            logprob = h.logprob + phrase.logprob + log_dis
+            logprob = h.logprob + phrase.logprob
             lm_state = h.lm_state
-            reached = tuple(set(h.reached + f[i:j]))
-            unreached = tuple(set(f) - set(reached))
             for word in phrase.english.split():
               (lm_state, word_logprob) = lm.score(lm_state, word)
               logprob += word_logprob
-            h_score = 0 ## add heuristic function
-            for un in unreached:
-              h_score += max([phrase_beyond.logprob for phrase_beyond in tm[(un,)]]) 
-            logprob += h_score
+            
             logprob += lm.end(lm_state) if j == len(f) else 0.0
-            new_hypothesis = hypothesis(logprob, lm_state, h, phrase,j,reached)
+            new_hypothesis = hypothesis(logprob, lm_state, h, phrase)
             if lm_state not in stacks[j] or stacks[j][lm_state].logprob < logprob: # second case is recombination
               stacks[j][lm_state] = new_hypothesis ## add new lm_state in the next stack if lm_state not conflict with previous translation or has higher probability
   winner = max(stacks[-1].values(), key=lambda h: h.logprob) ## select the best translation
