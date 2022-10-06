@@ -20,12 +20,12 @@ opts = optparser.parse_args()[0]
 
 ############# Prepare Sentences ###############
 ## prune for A*
-sys.stderr.write("Pruning and Generating Graph for A* ")
+## sys.stderr.write("Pruning and Generating Graph for A* ")
 best_tp = max([float(line.strip().split(' ||| ')[2])for line in open(opts.tm).readlines()]) 
 prune_limit = math.log(0.01 * math.exp(best_tp))
 ALPHA_DIST = opts.alpha
 
-sys.stderr.write("Importing sentences ")
+##sys.stderr.write("Importing sentences ")
 tm = models.TM(opts.tm, prune_limit) #{{('honorables',): [phrase(english='hono...gprob=0.0)], ...}}
 lm = models.LM(opts.lm) # table[ngram] = ngram_stats(logprob, backoff)
 french = [tuple(line.strip().split()) for line in open(opts.input).readlines()[:opts.num_sents]]
@@ -43,8 +43,8 @@ for ind, f in enumerate(french): ## loop each sentences
   # Hence all hypotheses in stacks[i] represent translations of 
   # the first i words of the input sentence. You should generalize
   # this so that they can represent translations of *any* i words.
-  if ((ind+5)*100/len(french))%10 == 0:
-        print("Progress: %.1f" % (ind+5)*100/len(french)) 
+  #if ((ind+5)*100/len(french))%10 == 0:
+  #      print("Progress: %.1f" % (ind+5)*100/len(french)) 
   hypothesis = namedtuple("hypothesis", "logprob, lm_state, predecessor, phrase, end_pos, reached")
   initial_hypothesis = hypothesis(0.0, lm.begin(), None, None, 0, tuple())
   stacks = [{} for _ in f] + [{}] ## add a null list for initial_hypothesis
