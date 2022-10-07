@@ -26,3 +26,4 @@ These commands work in a pipeline. For example:
 - https://www.udacity.com/blog/2021/10/implementing-dijkstras-algorithm-in-python.html
 - https://zhuanlan.zhihu.com/p/270516015
 - https://cxwangyi.wordpress.com/2010/07/28/backoff-in-n-gram-language-models/
+- https://cmusphinx.github.io/wiki/arpaformat/
