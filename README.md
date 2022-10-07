@@ -18,3 +18,11 @@ we remove from this list all words whose inverse translation probability is lowe
 These commands work in a pipeline. For example:
 
 > python decode | python compute-model-score
+
+
+### Reference
+- https://www.redblobgames.com/pathfinding/a-star/introduction.html
+- https://github.com/LogicJake/A-star-search
+- https://www.udacity.com/blog/2021/10/implementing-dijkstras-algorithm-in-python.html
+- https://zhuanlan.zhihu.com/p/270516015
+- https://cxwangyi.wordpress.com/2010/07/28/backoff-in-n-gram-language-models/
